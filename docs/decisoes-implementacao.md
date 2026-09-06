@@ -9,7 +9,17 @@ Tenant ativo: `oficinafni`
 - O solicitante não pode editar a própria solicitação depois do envio.
 - O checklist não é obrigatório para liberar saída ou devolução.
 - A exclusão é lógica: empréstimos usam `status=cancelado` e `ativo=false`.
-- Registros históricos antigos foram preservados; não foi executada exclusão física.
+- Os 36 registros históricos foram migrados de `construtorabs` para `oficinafni`, preservando os IDs.
+
+## Migração de tenant
+
+- Empresas: 3 registros em `oficinafni`.
+- Centros de custo: 3 registros em `oficinafni`.
+- Equipamentos/veículos: 224 registros em `oficinafni`.
+- Rastreio de veículos: 23 registros migrados para `oficinafni`.
+- Também foram migrados os registros antigos de solicitações, rastreio histórico, Wialon, WhatsApp, tokens e layouts.
+- A licença antiga de `construtorabs` foi mantida separada porque a tabela permite somente uma licença por tenant e já existe uma licença ativa em `oficinafni`; nenhum cadastro operacional depende dela.
+- O código do índice não faz mais leitura nem gravação no tenant antigo.
 
 ## Agendamento externo de manutenção
 
