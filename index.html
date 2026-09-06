@@ -3442,17 +3442,6 @@ async function _sbCarregarUmaTabela(tabela){
 async function sbCarregarTudo(){
   if(_sbMode!=='supabase'||!_sb) return;
   await Promise.all(SB_TABLES.map(tabela => _sbCarregarUmaTabela(tabela)));
-  // Os empréstimos históricos ficaram no tenant antigo. Não apagar nem migrar automaticamente:
-  // carregar também esses registros para que continuem visíveis.
-  if(_sbTenant !== _EMPRESTIMOS_LEGACY_TENANT){
-    try{
-      const r=await _sb.from('emprestimos_veiculos').select('*').eq('tenant',_EMPRESTIMOS_LEGACY_TENANT);
-      if(!r.error && Array.isArray(r.data)){
-        const atuais=db.emprestimos_veiculos||[], ids=new Set(atuais.map(x=>String(x.id)));
-        db.emprestimos_veiculos=atuais.concat(r.data.filter(x=>!ids.has(String(x.id))));
-      }
-    }catch(e){ console.warn('Empréstimos históricos não carregados:',e.message); }
-  }
   try{ _baseNormalizarVinculos(); }catch(e){ console.warn('normalização de base:', e); }
 }
 
@@ -3643,7 +3632,7 @@ async function sbDeletar(tabela, id){
       ? {status:'cancelado',ativo:false}
       : {excluido:true,ativo:false,excluido_em:new Date().toISOString(),excluido_por:(currentUser && (currentUser.nome||currentUser.username||currentUser.email)) || ''};
     let _q=_sb.from(tabela).update(_payload).eq('id',id);
-    if(_ehEmp) _q=_q.in('tenant',[_EMPRESTIMOS_TENANT,_EMPRESTIMOS_LEGACY_TENANT]);
+    if(_ehEmp) _q=_q.eq('tenant',_EMPRESTIMOS_TENANT);
     else _q=_q.eq('tenant',_sbTenant);
     const resp = await _q;
     if(resp.error) throw resp.error;
@@ -3675,7 +3664,6 @@ const _SB_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const _SB_TENANT = 'oficinafni'; // tenant padrão atual
 // Histórico do módulo de empréstimos existente antes da troca de tenant.
 const _EMPRESTIMOS_TENANT = 'oficinafni';
-const _EMPRESTIMOS_LEGACY_TENANT = 'construtorabs'; // somente leitura dos registros antigos
 
 // ── INICIALIZAÇÃO AUTOMÁTICA ──
 (function sbAutoInit(){
@@ -4770,8 +4758,8 @@ async function salvarOcorrencia(idExistente=null){
     fotosAntigas=_parseFotos(atual?.fotos);
   }
   const fotos=[...fotosAntigas, ...fotosNovas];
-  const dados={equipamento_id:parseInt(eq),motorista_id:parseInt(document.getElementById('oc_motorista')?.value)||null,tipo,da
-... 1320963 bytes omitted ...
+  const dados={equipamento_id:parseInt(eq),motorista_id:parseInt(document.getElementById('oc_motorista')?.value)||null,tipo,data:document.getElementById('oc_data')?.value||null,local:document.getElementById('oc_local')?.value||null,descricao:desc,responsavel:document.getElementById('oc_resp')?.value||null,custo:parseFloat(document.getElementById('oc_custo')?.value)||0,status:document.getElementById('oc_status')?.value||'aberta',os_id:document.getElementById('oc_os')?.value||null,obs:document.getElementById('oc_obs')?.value||null,fotos,multa_data_aceite:multaDados.multa_data_aceite||null,multa_cpf_infrator:multaDados.multa_cpf_infrator||null,multa_nome_infrator:multaDados.multa_nome_infrator||null,multa_data_notificacao:multaDados.multa_data_notificacao||null,multa_data_lim_condutor:multaDados.multa_data_lim_condutor||null,multa_orgao_autuador:multaDados.multa_orgao_autuador||null,multa_num
+... 1319542 bytes omitted ...
 le="display:flex;align-items:center;gap:16px;margin-bottom:12px">
         <div style="flex:1">
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
