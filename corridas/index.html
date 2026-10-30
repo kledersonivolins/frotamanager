@@ -1,0 +1,1534 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Corridas</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192x192.png">
+<link rel="apple-touch-icon" href="icons/icon-192x192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<style>
+  :root {
+    --fundo: #f3f4f6;
+    --cartao: #ffffff;
+    --texto: #111827;
+    --suave: #6b7280;
+    --borda: #e5e7eb;
+    --primaria: #16a34a;
+    --primaria-escura: #15803d;
+    --perigo: #dc2626;
+    --aviso: #d97706;
+    --azul: #2563eb;
+    --topo: #111827;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--fundo); color: var(--texto); font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .oculto { display: none !important; }
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+
+  /* ---------- Telas de entrada ---------- */
+  .tela-centro {
+    min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px 16px;
+  }
+  .caixa {
+    width: 100%; max-width: 420px; background: var(--cartao); border-radius: 16px;
+    padding: 24px 20px; box-shadow: 0 10px 30px rgba(0,0,0,.08);
+  }
+  .marca { text-align: center; margin-bottom: 18px; }
+  .marca .logo { font-size: 44px; }
+  .marca h1 { margin: 4px 0 0; font-size: 26px; }
+  .marca p { margin: 4px 0 0; color: var(--suave); }
+  .abas { display: flex; background: var(--fundo); border-radius: 10px; padding: 4px; margin-bottom: 16px; }
+  .abas button {
+    flex: 1; border: 0; background: transparent; padding: 10px; border-radius: 8px; font-weight: 600; color: var(--suave);
+  }
+  .abas button.ativa { background: var(--cartao); color: var(--texto); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  label { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 4px; }
+  input[type=text], input[type=email], input[type=password], input[type=tel], textarea {
+    width: 100%; padding: 12px; border: 1px solid var(--borda); border-radius: 10px; background: #fff; font-size: 16px;
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  .papeis { display: flex; gap: 8px; }
+  .papeis label {
+    flex: 1; margin: 0; border: 2px solid var(--borda); border-radius: 10px; padding: 12px; text-align: center; cursor: pointer;
+  }
+  .papeis input { display: none; }
+  .papeis label:has(input:checked) { border-color: var(--primaria); background: #f0fdf4; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border: 0; border-radius: 12px; padding: 14px 16px; font-weight: 700; font-size: 16px;
+    background: var(--primaria); color: #fff; text-decoration: none; min-height: 48px;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.largo { width: 100%; }
+  .btn.sec { background: var(--fundo); color: var(--texto); border: 1px solid var(--borda); }
+  .btn.perigo { background: #fff; color: var(--perigo); border: 1px solid #fecaca; }
+  .btn.azul { background: var(--azul); }
+  .btn.pequeno { padding: 8px 12px; min-height: 36px; font-size: 14px; border-radius: 10px; }
+  .linha-btns { display: flex; gap: 8px; margin-top: 10px; }
+  .linha-btns > * { flex: 1; }
+  .msg { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 14px; }
+  .msg.erro { background: #fef2f2; color: #991b1b; }
+  .msg.ok { background: #f0fdf4; color: #166534; }
+  code { background: var(--fundo); padding: 2px 6px; border-radius: 6px; font-size: 14px; }
+
+  /* ---------- App ---------- */
+  #tela-app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  header {
+    background: var(--topo); color: #fff; display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top)); z-index: 1000;
+  }
+  header .titulo { font-weight: 800; font-size: 18px; }
+  header .quem { flex: 1; min-width: 0; font-size: 13px; color: #d1d5db; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  header button {
+    background: rgba(255,255,255,.12); color: #fff; border: 0; border-radius: 8px; padding: 8px 10px; font-size: 14px;
+  }
+  .selo { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .selo.cliente { background: #dbeafe; color: #1e40af; }
+  .selo.motorista { background: #dcfce7; color: #166534; }
+  .selo.admin { background: #fef3c7; color: #92400e; }
+  .selo.pendente { background: #fef3c7; color: #92400e; }
+  .selo.aprovado { background: #dcfce7; color: #166534; }
+  .selo.bloqueado { background: #fee2e2; color: #991b1b; }
+
+  #mapa-area { position: relative; flex: 1; }
+  #mapa { position: absolute; inset: 0; }
+  #btn-centralizar {
+    position: absolute; right: 12px; top: 12px; z-index: 500; background: #fff; border: 0; border-radius: 50%;
+    width: 44px; height: 44px; font-size: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  #gps-aviso {
+    position: absolute; left: 12px; right: 68px; top: 12px; z-index: 500; background: #fffbeb; color: #92400e;
+    border: 1px solid #fde68a; border-radius: 10px; padding: 8px 10px; font-size: 14px;
+  }
+  #painel {
+    background: var(--cartao); border-radius: 18px 18px 0 0; box-shadow: 0 -6px 20px rgba(0,0,0,.12);
+    padding: 14px 16px; padding-bottom: calc(14px + env(safe-area-inset-bottom));
+    max-height: 58vh; overflow-y: auto; z-index: 600; margin-top: -16px; position: relative;
+  }
+  #painel h2 { margin: 2px 0 8px; font-size: 20px; }
+  #painel h3 { margin: 14px 0 6px; font-size: 16px; }
+  .sub { color: var(--suave); font-size: 14px; }
+
+  .campo { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .campo input { flex: 1; }
+  .campo .bolinha { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .bolinha.verde { background: var(--primaria); }
+  .bolinha.vermelha { background: var(--perigo); }
+  .campo button { border: 1px solid var(--borda); background: var(--fundo); border-radius: 10px; width: 48px; height: 48px; font-size: 18px; }
+  .campo.escolhendo input { border-color: var(--azul); box-shadow: 0 0 0 3px #dbeafe; }
+  .atalhos { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; margin: 2px 0 8px; }
+  .link { background: none; border: 0; padding: 0; color: var(--azul); font-weight: 600; font-size: 14px; }
+  .resultados { border: 1px solid var(--borda); border-radius: 10px; margin: -2px 0 10px; overflow: hidden; }
+  .resultados button {
+    display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--borda); background: #fff; padding: 10px 12px; font-size: 14px;
+  }
+  .resultados button:last-child { border-bottom: 0; }
+  .estimativa {
+    display: flex; align-items: center; justify-content: space-between; background: var(--fundo);
+    border-radius: 12px; padding: 12px; margin: 8px 0 10px;
+  }
+  .estimativa .preco { font-size: 24px; font-weight: 800; }
+
+  .cartao {
+    border: 1px solid var(--borda); border-radius: 14px; padding: 12px; margin: 8px 0; background: #fff;
+  }
+  .pessoa { display: flex; align-items: center; gap: 12px; }
+  .avatar {
+    width: 48px; height: 48px; border-radius: 50%; background: var(--fundo); display: flex; align-items: center;
+    justify-content: center; font-size: 24px; flex: none;
+  }
+  .pessoa .nome { font-weight: 700; font-size: 17px; }
+  .placa {
+    display: inline-block; font-family: ui-monospace, monospace; font-weight: 800; letter-spacing: 1px;
+    border: 2px solid var(--texto); border-radius: 6px; padding: 2px 8px; margin-top: 4px;
+  }
+  .trajeto { font-size: 14px; line-height: 1.5; }
+  .trajeto div { display: flex; gap: 8px; align-items: baseline; }
+  .trajeto .bolinha { width: 10px; height: 10px; border-radius: 50%; flex: none; position: relative; top: 1px; }
+  .valor-linha { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 14px; }
+  .valor-linha b { font-size: 18px; }
+  .status-faixa { border-radius: 12px; padding: 10px 12px; font-weight: 700; margin-bottom: 8px; }
+  .status-faixa.azul { background: #eff6ff; color: #1e40af; }
+  .status-faixa.verde { background: #f0fdf4; color: #166534; }
+  .status-faixa.amarela { background: #fffbeb; color: #92400e; }
+  .ao-vivo { font-size: 14px; color: var(--suave); margin-top: 6px; }
+  .ao-vivo::before {
+    content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--primaria);
+    margin-right: 6px; animation: pulsar 1.4s infinite;
+  }
+  @keyframes pulsar { 50% { opacity: .25; } }
+  .carregando { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+  .spinner {
+    width: 28px; height: 28px; border: 3px solid var(--borda); border-top-color: var(--primaria); border-radius: 50%;
+    animation: girar 0.9s linear infinite; flex: none;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .interruptor {
+    width: 100%; border: 0; border-radius: 14px; padding: 18px; font-size: 18px; font-weight: 800; color: #fff;
+    background: var(--suave);
+  }
+  .interruptor.on { background: var(--primaria); }
+  .estrelas { display: flex; justify-content: center; gap: 6px; margin: 10px 0; }
+  .estrelas button { font-size: 36px; border: 0; background: none; padding: 0 2px; filter: grayscale(1); opacity: .45; }
+  .estrelas button.marcada { filter: none; opacity: 1; }
+  .vazio { text-align: center; color: var(--suave); padding: 14px 0; font-size: 14px; }
+
+  /* Marcadores do mapa */
+  .pino { font-size: 28px; line-height: 36px; text-align: center; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+  .pino-eu {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--azul); border: 3px solid #fff;
+    box-shadow: 0 0 0 6px rgba(37,99,235,.25);
+  }
+
+  /* Modal e aviso */
+  .modal-fundo {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 2000; display: flex; align-items: flex-end; justify-content: center;
+  }
+  .modal {
+    background: #fff; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; border-radius: 18px 18px 0 0;
+    padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .modal-topo { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .modal-topo h2 { margin: 0; font-size: 20px; }
+  #toast {
+    position: fixed; left: 50%; transform: translateX(-50%); top: calc(64px + env(safe-area-inset-top)); z-index: 3000;
+    background: var(--texto); color: #fff; padding: 12px 16px; border-radius: 12px; font-size: 15px; max-width: calc(100% - 32px);
+    box-shadow: 0 6px 20px rgba(0,0,0,.25); text-align: center;
+  }
+  #toast.erro { background: var(--perigo); }
+  #toast.ok { background: var(--primaria-escura); }
+
+  @media (min-width: 900px) {
+    #painel { position: absolute; left: 16px; top: 76px; bottom: auto; width: 400px; max-height: calc(100% - 92px); border-radius: 18px; margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Falta configurar o Supabase -->
+<section id="tela-config" class="tela-centro oculto">
+  <div class="caixa">
+    <div class="marca"><div class="logo">🚕</div><h1 class="app-nome">Corridas</h1></div>
+    <div class="msg erro">
+      O app ainda não está ligado ao banco de dados. Abra este <code>index.html</code>, procure <code>CONFIG</code>
+      no começo do script e preencha <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code>.
+      O passo a passo está no arquivo <code>LEIA-ME.md</code>.
+    </div>
+  </div>
+</section>
+
+<!-- Login / Cadastro -->
+<section id="tela-login" class="tela-centro oculto">
+  <div class="caixa">
+    <div class="marca"><div class="logo">🚕</div><h1 class="app-nome">Corridas</h1><p>Peça ou faça corridas na sua cidade</p></div>
+    <div class="abas">
+      <button type="button" data-aba="entrar" class="ativa">Entrar</button>
+      <button type="button" data-aba="cadastrar">Criar conta</button>
+    </div>
+
+    <form id="form-entrar">
+      <label for="e-email">E-mail</label>
+      <input id="e-email" type="email" autocomplete="email" required>
+      <label for="e-senha">Senha</label>
+      <input id="e-senha" type="password" autocomplete="current-password" required>
+      <button class="btn largo" style="margin-top:16px" type="submit">Entrar</button>
+      <button class="link" style="margin-top:12px" type="button" id="btn-esqueci">Esqueci minha senha</button>
+    </form>
+
+    <form id="form-cadastrar" class="oculto">
+      <label>Quero usar como</label>
+      <div class="papeis">
+        <label><input type="radio" name="papel" value="cliente" checked>🙋<br>Cliente</label>
+        <label><input type="radio" name="papel" value="motorista">🚗<br>Motorista</label>
+      </div>
+      <label for="c-nome">Nome completo</label>
+      <input id="c-nome" type="text" autocomplete="name" required>
+      <label for="c-tel">Celular (WhatsApp)</label>
+      <input id="c-tel" type="tel" autocomplete="tel" placeholder="(11) 99999-9999" required>
+      <div id="campos-motorista" class="oculto">
+        <label for="c-cnh">Número da CNH</label>
+        <input id="c-cnh" type="text">
+        <label for="c-modelo">Modelo do carro</label>
+        <input id="c-modelo" type="text" placeholder="Ex.: Onix">
+        <label for="c-cor">Cor</label>
+        <input id="c-cor" type="text" placeholder="Ex.: Prata">
+        <label for="c-placa">Placa</label>
+        <input id="c-placa" type="text" placeholder="ABC1D23" style="text-transform:uppercase">
+      </div>
+      <label for="c-email">E-mail</label>
+      <input id="c-email" type="email" autocomplete="email" required>
+      <label for="c-senha">Senha (mínimo 6 caracteres)</label>
+      <input id="c-senha" type="password" autocomplete="new-password" minlength="6" required>
+      <button class="btn largo" style="margin-top:16px" type="submit">Criar conta</button>
+    </form>
+    <div id="login-msg" class="msg oculto"></div>
+  </div>
+</section>
+
+<!-- App -->
+<section id="tela-app" class="oculto">
+  <header>
+    <span class="titulo app-nome">Corridas</span>
+    <span class="quem" id="quem"></span>
+    <button type="button" id="btn-historico">Corridas</button>
+    <button type="button" id="btn-sair">Sair</button>
+  </header>
+  <div id="mapa-area">
+    <div id="mapa"></div>
+    <div id="gps-aviso" class="oculto"></div>
+    <button type="button" id="btn-centralizar" title="Centralizar">🎯</button>
+  </div>
+  <div id="painel"></div>
+</section>
+
+<div id="modal" class="modal-fundo oculto">
+  <div class="modal">
+    <div class="modal-topo"><h2 id="modal-titulo"></h2><button class="btn sec pequeno" type="button" id="modal-fechar">Fechar</button></div>
+    <div id="modal-corpo"></div>
+  </div>
+</div>
+<div id="toast" class="oculto"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"
+        integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
+<script>
+// =====================================================================
+// CONFIGURAÇÃO — preencha com os dados do seu projeto Supabase
+// (Supabase > Project Settings > API). A chave "anon" é pública por
+// natureza; a segurança vem das regras do arquivo supabase/schema.sql.
+// =====================================================================
+const CONFIG = {
+  SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',
+  SUPABASE_ANON_KEY: 'SUA-CHAVE-ANON-AQUI',
+  APP_NOME: 'Corridas',
+};
+
+// Mapa e endereços usam serviços gratuitos do OpenStreetMap, bons para
+// testes. Para produção troque por um provedor pago (ver LEIA-ME.md).
+const SERVICOS = {
+  TILES: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  GEOCODER: 'https://nominatim.openstreetmap.org',
+  ROTAS: 'https://router.project-osrm.org/route/v1/driving',
+};
+
+const ATIVOS = ['solicitada', 'aceita', 'chegou', 'em_andamento'];
+const COMPARTILHANDO = ['aceita', 'chegou', 'em_andamento'];
+const CENTRO_PADRAO = [-23.5505, -46.6333];
+
+// ---------------------------------------------------------------------
+// Utilitários
+// ---------------------------------------------------------------------
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtKm = (v) => `${Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`;
+const fmtDist = (m) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : fmtKm(m / 1000));
+const soDigitos = (v) => String(v || '').replace(/\D/g, '');
+
+function distanciaM(a, b) {
+  const r = (x) => (x * Math.PI) / 180;
+  const h = Math.sin(r(b.lat - a.lat) / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(r(b.lng - a.lng) / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function haQuanto(iso) {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 10) return 'agora';
+  if (s < 60) return `há ${s}s`;
+  const m = Math.floor(s / 60);
+  return m < 60 ? `há ${m} min` : `há ${Math.floor(m / 60)} h`;
+}
+
+function telLink(tel) {
+  const d = soDigitos(tel);
+  return d ? `tel:+${d.length <= 11 ? '55' + d : d}` : null;
+}
+function zapLink(tel) {
+  const d = soDigitos(tel);
+  return d ? `https://wa.me/${d.length <= 11 ? '55' + d : d}` : null;
+}
+
+let toastTimer;
+function toast(texto, tipo = '') {
+  const el = $('#toast');
+  el.textContent = texto;
+  el.className = tipo;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.add('oculto'), 4000);
+}
+
+function erro(e) {
+  const msg = e?.message || String(e);
+  console.error(e);
+  toast(msg.replace(/^.*?ERROR:\s*/, ''), 'erro');
+}
+
+// Toque + vibração para avisos importantes (nova corrida, motorista chegou...).
+function alerta(texto) {
+  toast(texto, 'ok');
+  try { navigator.vibrate?.([250, 120, 250]); } catch (_) {}
+  try {
+    S.audio = S.audio || new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.3].forEach((t) => {
+      const o = S.audio.createOscillator();
+      const g = S.audio.createGain();
+      o.frequency.value = 880;
+      g.gain.value = 0.15;
+      o.connect(g).connect(S.audio.destination);
+      o.start(S.audio.currentTime + t);
+      o.stop(S.audio.currentTime + t + 0.18);
+    });
+  } catch (_) {}
+}
+
+function mostrarTela(id) {
+  ['tela-config', 'tela-login', 'tela-app'].forEach((t) => $('#' + t).classList.toggle('oculto', t !== id));
+  if (id === 'tela-app' && S.mapa) setTimeout(() => S.mapa.invalidateSize(), 50);
+}
+
+function abrirModal(titulo, html) {
+  $('#modal-titulo').textContent = titulo;
+  $('#modal-corpo').innerHTML = html;
+  $('#modal').classList.remove('oculto');
+}
+function fecharModal() { $('#modal').classList.add('oculto'); }
+
+// ---------------------------------------------------------------------
+// Estado
+// ---------------------------------------------------------------------
+const S = {
+  usuario: null, perfil: null, motorista: null, tarifa: null,
+  corrida: null,          // corrida ativa
+  outro: null,            // perfil da outra parte (motorista p/ cliente e vice-versa)
+  carro: null, notaOutro: null,
+  posOutro: null,         // última posição recebida da outra parte
+  pos: null,              // minha posição
+  ultimoEnvio: 0, ultimaPosEnviada: null,
+  // pedido do cliente (antes de chamar)
+  origem: null, destino: null, escolhendo: 'destino', texto: { origem: '', destino: '' },
+  resultados: null, estimativa: null, calculando: false, seqEstimativa: 0,
+  disponiveis: [], disponiveisAssinatura: '',
+  avaliar: null, nota: 0,
+  adminLista: null,
+  mapa: null, mk: {}, linhaRota: null, rotaDe: null, ofertasLayer: null, enquadrouOutro: false,
+  canal: null, gpsId: null, timers: [], wakeLock: null, sincronizando: false,
+};
+
+let sb = null;
+const configurado = /^https:\/\//.test(CONFIG.SUPABASE_URL) && !CONFIG.SUPABASE_URL.includes('SEU-PROJETO')
+  && CONFIG.SUPABASE_ANON_KEY.length > 30;
+
+// ---------------------------------------------------------------------
+// Início e autenticação
+// ---------------------------------------------------------------------
+function iniciar() {
+  document.title = CONFIG.APP_NOME;
+  document.querySelectorAll('.app-nome').forEach((el) => { el.textContent = CONFIG.APP_NOME; });
+  ligarEventosFixos();
+
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  if (!configurado) { mostrarTela('tela-config'); return; }
+
+  sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  // O callback não pode esperar outras chamadas do Supabase diretamente
+  // (trava o cliente); por isso o setTimeout.
+  sb.auth.onAuthStateChange((evento, sessao) => setTimeout(() => {
+    if (evento === 'PASSWORD_RECOVERY') definirNovaSenha();
+    aoMudarSessao(sessao);
+  }, 0));
+}
+
+// Usuário voltou pelo link "Esqueci minha senha".
+async function definirNovaSenha() {
+  const senha = prompt('Digite sua nova senha (mínimo 6 caracteres):');
+  if (!senha) return;
+  if (senha.length < 6) { toast('A senha precisa ter pelo menos 6 caracteres.', 'erro'); return; }
+  const { error } = await sb.auth.updateUser({ password: senha });
+  if (error) erro(error); else toast('Senha alterada!', 'ok');
+}
+
+async function aoMudarSessao(sessao) {
+  const uid = sessao?.user?.id || null;
+  if (uid && uid === S.usuario?.id) return; // só renovação de token
+  limparApp();
+  if (!uid) { mostrarTela('tela-login'); return; }
+  S.usuario = sessao.user;
+  try {
+    await entrarNoApp();
+  } catch (e) {
+    erro(e);
+    mostrarTela('tela-login');
+  }
+}
+
+async function entrarNoApp() {
+  const uid = S.usuario.id;
+  const { data: perfil, error } = await sb.from('perfis').select('id, nome, telefone, papel').eq('id', uid).single();
+  if (error) throw new Error('Perfil não encontrado. Confira se o schema.sql foi executado no Supabase.');
+  S.perfil = perfil;
+
+  const { data: tarifa } = await sb.from('tarifa').select('*').eq('id', 1).maybeSingle();
+  S.tarifa = tarifa || { expira_min: 10 };
+
+  if (perfil.papel === 'motorista') await recarregarMotorista();
+
+  $('#quem').innerHTML = `${esc(perfil.nome)} <span class="selo ${perfil.papel}">${perfil.papel}</span>`;
+  mostrarTela('tela-app');
+  iniciarMapa();
+
+  if (perfil.papel === 'admin') {
+    await carregarAdmin();
+    render();
+    return;
+  }
+
+  iniciarGPS();
+  await carregarCorridaAtiva();
+  render();
+
+  S.timers.push(setInterval(sincronizar, 8000));
+  S.timers.push(setInterval(() => enviarPosicao(), 5000));
+  S.timers.push(setInterval(atualizarTextosAoVivo, 5000));
+  if (perfil.papel === 'motorista') {
+    S.timers.push(setInterval(atualizarDisponiveis, 5000));
+    atualizarDisponiveis();
+  }
+}
+
+async function recarregarMotorista() {
+  const { data, error } = await sb.from('motoristas')
+    .select('id, veiculo_modelo, veiculo_cor, veiculo_placa, status, online')
+    .eq('id', S.usuario.id).single();
+  if (error) throw error;
+  S.motorista = data;
+}
+
+function limparApp() {
+  S.timers.forEach(clearInterval);
+  S.timers = [];
+  if (S.gpsId != null) navigator.geolocation.clearWatch(S.gpsId);
+  S.gpsId = null;
+  if (S.canal) sb.removeChannel(S.canal);
+  S.canal = null;
+  try { S.wakeLock?.release(); } catch (_) {}
+  S.wakeLock = null;
+  Object.assign(S, {
+    usuario: null, perfil: null, motorista: null, corrida: null, outro: null, carro: null, notaOutro: null,
+    posOutro: null, pos: null, ultimoEnvio: 0, ultimaPosEnviada: null, origem: null, destino: null,
+    escolhendo: 'destino', texto: { origem: '', destino: '' }, resultados: null, estimativa: null,
+    disponiveis: [], disponiveisAssinatura: '', avaliar: null, nota: 0, adminLista: null, rotaDe: null, enquadrouOutro: false,
+  });
+  if (S.mapa) {
+    Object.keys(S.mk).forEach((k) => marcador(k, null));
+    S.ofertasLayer?.clearLayers();
+    desenharLinha(null);
+  }
+  $('#painel').innerHTML = '';
+}
+
+async function sair() {
+  try {
+    if (S.perfil?.papel === 'motorista' && S.motorista?.online) await sb.rpc('definir_online', { p_online: false });
+  } catch (_) {}
+  await sb.auth.signOut();
+}
+
+// ---------------------------------------------------------------------
+// Mapa
+// ---------------------------------------------------------------------
+function iniciarMapa() {
+  if (S.mapa) { setTimeout(() => S.mapa.invalidateSize(), 50); return; }
+  S.mapa = L.map('mapa', { zoomControl: false, attributionControl: true }).setView(CENTRO_PADRAO, 13);
+  L.tileLayer(SERVICOS.TILES, { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(S.mapa);
+  S.ofertasLayer = L.layerGroup().addTo(S.mapa);
+  S.mapa.on('click', aoClicarMapa);
+  // O painel de baixo muda de altura; o mapa precisa saber do novo tamanho.
+  if ('ResizeObserver' in window) new ResizeObserver(() => S.mapa.invalidateSize()).observe($('#mapa'));
+}
+
+function icone(tipo) {
+  if (tipo === 'eu') return L.divIcon({ className: '', html: '<div class="pino-eu"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
+  const emoji = { motorista: '🚗', cliente: '🙋', origem: '🟢', destino: '🏁', oferta: '🙋' }[tipo] || '📍';
+  return L.divIcon({ className: '', html: `<div class="pino">${emoji}</div>`, iconSize: [36, 36], iconAnchor: [18, 30] });
+}
+
+// Cria, move ou remove um marcador nomeado.
+function marcador(nome, ponto, tipo = nome) {
+  const atual = S.mk[nome];
+  if (!ponto) {
+    if (atual) { S.mapa.removeLayer(atual); delete S.mk[nome]; }
+    return;
+  }
+  if (atual) {
+    atual.setLatLng([ponto.lat, ponto.lng]);
+    if (atual._tipo !== tipo) { atual.setIcon(icone(tipo)); atual._tipo = tipo; }
+  } else {
+    S.mk[nome] = L.marker([ponto.lat, ponto.lng], { icon: icone(tipo), zIndexOffset: nome === 'outro' ? 1000 : 0 }).addTo(S.mapa);
+    S.mk[nome]._tipo = tipo;
+  }
+}
+
+function desenharLinha(pontos) {
+  if (S.linhaRota) { S.mapa.removeLayer(S.linhaRota); S.linhaRota = null; }
+  if (pontos?.length) {
+    S.linhaRota = L.polyline(pontos, { color: '#111827', weight: 5, opacity: 0.75 }).addTo(S.mapa);
+  }
+}
+
+function enquadrar(pontos) {
+  const validos = pontos.filter(Boolean).map((p) => [p.lat, p.lng]);
+  if (!validos.length) return;
+  S.mapa.invalidateSize({ pan: false });
+  // Sem animação: a animação de zoom do Leaflet se perde quando o painel
+  // muda o tamanho do mapa no mesmo instante.
+  if (validos.length === 1) { S.mapa.setView(validos[0], Math.max(S.mapa.getZoom(), 15), { animate: false }); return; }
+  const largo = window.innerWidth >= 900;
+  S.mapa.fitBounds(validos, {
+    paddingTopLeft: [largo ? 440 : 40, 60],
+    paddingBottomRight: [40, largo ? 40 : 40],
+    maxZoom: 16,
+    animate: false,
+  });
+}
+
+function centralizar() {
+  const c = S.corrida;
+  if (c) {
+    const pontos = [S.pos, S.posOutro];
+    if (c.status === 'em_andamento') pontos.push({ lat: c.destino_lat, lng: c.destino_lng });
+    else pontos.push({ lat: c.origem_lat, lng: c.origem_lng });
+    enquadrar(pontos);
+  } else if (S.origem || S.destino) {
+    enquadrar([S.origem, S.destino]);
+  } else {
+    enquadrar([S.pos]);
+  }
+}
+
+// Sincroniza os marcadores com o estado atual.
+function desenharMapa() {
+  if (!S.mapa) return;
+  marcador('eu', S.pos, 'eu');
+  const c = S.corrida;
+  const souMotorista = S.perfil?.papel === 'motorista';
+
+  if (c) {
+    marcador('origem', { lat: c.origem_lat, lng: c.origem_lng });
+    marcador('destino', { lat: c.destino_lat, lng: c.destino_lng });
+    const mostrarOutro = COMPARTILHANDO.includes(c.status) && S.posOutro;
+    marcador('outro', mostrarOutro ? S.posOutro : null, souMotorista ? 'cliente' : 'motorista');
+    if (S.rotaDe !== c.id) {
+      S.rotaDe = c.id;
+      const o = { lat: c.origem_lat, lng: c.origem_lng };
+      const d = { lat: c.destino_lat, lng: c.destino_lng };
+      desenharLinha([[o.lat, o.lng], [d.lat, d.lng]]);
+      calcularRota(o, d).then((r) => { if (S.rotaDe === c.id && r) desenharLinha(r.linha); });
+    }
+  } else {
+    marcador('outro', null);
+    const pedindo = S.perfil?.papel === 'cliente' && !S.avaliar;
+    marcador('origem', pedindo ? S.origem : null);
+    marcador('destino', pedindo ? S.destino : null);
+    if (!pedindo || !(S.origem && S.destino)) { desenharLinha(null); S.rotaDe = null; }
+  }
+
+  S.ofertasLayer.clearLayers();
+  if (souMotorista && !c) {
+    S.disponiveis.forEach((d) => L.marker([d.origem_lat, d.origem_lng], { icon: icone('oferta') }).addTo(S.ofertasLayer));
+  }
+}
+
+// ---------------------------------------------------------------------
+// GPS e envio de posição
+// ---------------------------------------------------------------------
+function iniciarGPS() {
+  if (!('geolocation' in navigator)) {
+    avisoGPS('Este aparelho/navegador não oferece localização.');
+    return;
+  }
+  if (S.gpsId != null) return;
+  S.gpsId = navigator.geolocation.watchPosition(aoReceberPosicao, (e) => {
+    avisoGPS(e.code === 1
+      ? 'Permita o acesso à localização nas configurações do navegador para usar o app.'
+      : 'Procurando sinal de GPS…');
+  }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
+}
+
+function avisoGPS(texto) {
+  const el = $('#gps-aviso');
+  el.textContent = texto || '';
+  el.classList.toggle('oculto', !texto);
+}
+
+function aoReceberPosicao(p) {
+  const primeira = !S.pos;
+  S.pos = { lat: p.coords.latitude, lng: p.coords.longitude, precisao: p.coords.accuracy };
+  avisoGPS(null);
+  marcador('eu', S.pos, 'eu');
+  if (primeira) {
+    if (!S.corrida) S.mapa.setView([S.pos.lat, S.pos.lng], 15, { animate: false });
+    if (S.perfil?.papel === 'cliente' && !S.origem && !S.corrida) usarMinhaLocalizacao(false);
+    if (S.perfil?.papel === 'motorista') render();
+  }
+  atualizarTextosAoVivo();
+  enviarPosicao();
+}
+
+function compartilhandoAgora() {
+  return !!(S.corrida && COMPARTILHANDO.includes(S.corrida.status));
+}
+
+function deveEnviarPosicao() {
+  if (S.perfil?.papel === 'motorista') return !!S.motorista?.online || compartilhandoAgora();
+  if (S.perfil?.papel === 'cliente') return compartilhandoAgora();
+  return false;
+}
+
+// Envia no máximo a cada 4 s; parado, renova a cada 15 s.
+async function enviarPosicao(forcar = false) {
+  if (!S.pos || !deveEnviarPosicao()) return;
+  const agora = Date.now();
+  const moveu = !S.ultimaPosEnviada || distanciaM(S.ultimaPosEnviada, S.pos) > 10;
+  if (!forcar && (agora - S.ultimoEnvio < 4000 || (!moveu && agora - S.ultimoEnvio < 15000))) return;
+  S.ultimoEnvio = agora;
+  S.ultimaPosEnviada = { ...S.pos };
+  const { error } = await sb.rpc('enviar_posicao', { p_lat: S.pos.lat, p_lng: S.pos.lng, p_precisao: S.pos.precisao ?? null });
+  if (error) console.warn('enviar_posicao', error.message);
+}
+
+// Mantém a tela ligada enquanto o motorista está online ou há corrida em curso
+// (no celular, o navegador pausa o GPS quando a tela apaga).
+async function atualizarWakeLock() {
+  const precisa = (S.perfil?.papel === 'motorista' && S.motorista?.online) || compartilhandoAgora() || S.corrida?.status === 'solicitada';
+  try {
+    if (precisa && !S.wakeLock && 'wakeLock' in navigator && document.visibilityState === 'visible') {
+      S.wakeLock = await navigator.wakeLock.request('screen');
+      S.wakeLock.addEventListener('release', () => { S.wakeLock = null; });
+    } else if (!precisa && S.wakeLock) {
+      await S.wakeLock.release();
+      S.wakeLock = null;
+    }
+  } catch (_) {}
+}
+
+// ---------------------------------------------------------------------
+// Endereços e rotas (OpenStreetMap)
+// ---------------------------------------------------------------------
+function resumirEndereco(x) {
+  const a = x?.address || {};
+  const rua = [a.road || a.pedestrian || a.footway, a.house_number].filter(Boolean).join(', ');
+  const titulo = x?.name && x.name !== a.road ? x.name : null;
+  const bairro = a.suburb || a.neighbourhood || a.city_district;
+  const cidade = a.city || a.town || a.village || a.municipality;
+  const partes = [titulo, rua, bairro, cidade].filter(Boolean);
+  return partes.length ? partes.join(' - ') : String(x?.display_name || '').split(',').slice(0, 3).join(',');
+}
+
+async function buscarEnderecos(texto) {
+  const p = new URLSearchParams({ format: 'jsonv2', q: texto, limit: '6', countrycodes: 'br', 'accept-language': 'pt-BR', addressdetails: '1' });
+  if (S.pos) {
+    const d = 0.4;
+    p.set('viewbox', `${S.pos.lng - d},${S.pos.lat + d},${S.pos.lng + d},${S.pos.lat - d}`);
+  }
+  const r = await fetch(`${SERVICOS.GEOCODER}/search?${p}`);
+  if (!r.ok) throw new Error('A busca de endereços está indisponível. Tente tocar no mapa.');
+  return (await r.json()).map((x) => ({ lat: Number(x.lat), lng: Number(x.lon), endereco: resumirEndereco(x) }));
+}
+
+async function enderecoDe(ponto) {
+  const reserva = `${ponto.lat.toFixed(5)}, ${ponto.lng.toFixed(5)}`;
+  try {
+    const p = new URLSearchParams({ format: 'jsonv2', lat: ponto.lat, lon: ponto.lng, zoom: '18', addressdetails: '1', 'accept-language': 'pt-BR' });
+    const r = await fetch(`${SERVICOS.GEOCODER}/reverse?${p}`);
+    if (!r.ok) return reserva;
+    return resumirEndereco(await r.json()) || reserva;
+  } catch (_) {
+    return reserva;
+  }
+}
+
+async function calcularRota(a, b) {
+  try {
+    const r = await fetch(`${SERVICOS.ROTAS}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`);
+    const j = await r.json();
+    const rt = j.routes?.[0];
+    if (!rt) return null;
+    return { km: rt.distance / 1000, min: Math.max(1, Math.round(rt.duration / 60)), linha: rt.geometry.coordinates.map(([lng, lat]) => [lat, lng]) };
+  } catch (_) {
+    return null;
+  }
+}
+
+function linkNavegacao(ponto, app) {
+  return app === 'waze'
+    ? `https://waze.com/ul?ll=${ponto.lat},${ponto.lng}&navigate=yes`
+    : `https://www.google.com/maps/dir/?api=1&destination=${ponto.lat},${ponto.lng}&travelmode=driving`;
+}
+
+// ---------------------------------------------------------------------
+// Corrida ativa: carregar, tempo real e sincronização
+// ---------------------------------------------------------------------
+async function carregarCorridaAtiva() {
+  const col = S.perfil.papel === 'motorista' ? 'motorista_id' : 'cliente_id';
+  const { data, error } = await sb.from('corridas').select('*')
+    .eq(col, S.usuario.id).in('status', ATIVOS)
+    .order('criado_em', { ascending: false }).limit(1).maybeSingle();
+  if (error) throw error;
+  await definirCorrida(data || null);
+}
+
+// Ponto único por onde passa qualquer mudança da corrida.
+async function definirCorrida(nova) {
+  const uid = S.usuario?.id;
+  if (!uid) return;
+  const ant = S.corrida;
+  const souMotorista = S.perfil.papel === 'motorista';
+
+  // Motorista que desistiu deixa de ser dono da corrida.
+  if (nova && souMotorista && nova.motorista_id !== uid) nova = null;
+  if (ant && nova && ant.id === nova.id && JSON.stringify(ant) === JSON.stringify(nova)) return;
+
+  if (ant && nova && ant.id === nova.id && ant.status !== nova.status) avisarMudanca(nova, ant);
+
+  if (nova && !ATIVOS.includes(nova.status)) {
+    if (nova.status === 'concluida') {
+      S.avaliar = { id: nova.id, nome: S.outro?.nome || (souMotorista ? 'o passageiro' : 'o motorista'), preco: nova.preco };
+      S.nota = 0;
+    }
+    nova = null;
+  }
+
+  // Cliente: motorista desistiu, voltou a procurar.
+  if (nova && !souMotorista && !nova.motorista_id) {
+    S.outro = null; S.carro = null; S.notaOutro = null; S.posOutro = null; S.enquadrouOutro = false;
+  }
+
+  const mudouId = ant?.id !== nova?.id;
+  S.corrida = nova;
+
+  if (mudouId) {
+    S.outro = null; S.carro = null; S.notaOutro = null; S.posOutro = null; S.enquadrouOutro = false;
+    S.rotaDe = null;
+    if (nova) {
+      S.origem = null; S.destino = null; S.estimativa = null; S.resultados = null;
+      S.texto = { origem: '', destino: '' };
+    }
+    assinarCorrida();
+  }
+
+  const outroId = nova ? (souMotorista ? nova.cliente_id : nova.motorista_id) : null;
+  if (outroId && S.outro?.id !== outroId) await carregarOutraParte(outroId);
+
+  desenharMapa();
+  render();
+  if (nova && (mudouId || ant?.status !== nova.status)) centralizar();
+  atualizarWakeLock();
+  if (compartilhandoAgora()) enviarPosicao(true);
+  if (!nova && S.perfil.papel === 'cliente' && !S.origem && S.pos) usarMinhaLocalizacao(false);
+}
+
+function avisarMudanca(nova, ant) {
+  const souMotorista = S.perfil.papel === 'motorista';
+  if (souMotorista) {
+    if (nova.status === 'cancelada') alerta('O passageiro cancelou a corrida.');
+    return;
+  }
+  const textos = {
+    aceita: 'Motorista a caminho! 🚗',
+    chegou: 'Seu motorista chegou!',
+    em_andamento: 'Corrida iniciada. Boa viagem!',
+    concluida: `Corrida finalizada. Valor: ${brl(nova.preco)}`,
+  };
+  if (nova.status === 'solicitada' && ant.status !== 'solicitada') {
+    alerta('O motorista desistiu. Procurando outro…');
+  } else if (nova.status === 'cancelada' && nova.cancelada_por === 'sistema') {
+    toast('Nenhum motorista aceitou a tempo. Tente pedir de novo.', 'erro');
+  } else if (textos[nova.status]) {
+    alerta(textos[nova.status]);
+  }
+}
+
+async function carregarOutraParte(id) {
+  const souCliente = S.perfil.papel === 'cliente';
+  const [perfil, nota, carro] = await Promise.all([
+    sb.from('perfis').select('id, nome, telefone').eq('id', id).maybeSingle(),
+    sb.rpc('nota_media', { p_usuario: id }),
+    souCliente
+      ? sb.from('motoristas').select('veiculo_modelo, veiculo_cor, veiculo_placa').eq('id', id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  S.outro = perfil.data || { id, nome: souCliente ? 'Motorista' : 'Passageiro', telefone: null };
+  S.notaOutro = nota.data?.[0] || null;
+  S.carro = carro.data;
+  await carregarPosicaoOutro();
+}
+
+async function carregarPosicaoOutro() {
+  if (!compartilhandoAgora()) return;
+  const { data } = await sb.from('posicoes').select('*').eq('corrida_id', S.corrida.id);
+  (data || []).forEach(receberPosicaoOutro);
+}
+
+function receberPosicaoOutro(linha) {
+  if (!linha || !S.corrida || linha.corrida_id !== S.corrida.id || linha.usuario_id === S.usuario.id) return;
+  S.posOutro = { lat: linha.lat, lng: linha.lng, atualizado_em: linha.atualizado_em };
+  desenharMapa();
+  if (!S.enquadrouOutro) { S.enquadrouOutro = true; centralizar(); }
+  atualizarTextosAoVivo();
+}
+
+// Tempo real: mudanças de status e GPS da outra parte chegam na hora.
+function assinarCorrida() {
+  if (S.canal) { sb.removeChannel(S.canal); S.canal = null; }
+  const c = S.corrida;
+  if (!c) return;
+  S.canal = sb.channel(`corrida-${c.id}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'corridas', filter: `id=eq.${c.id}` },
+      (p) => definirCorrida(p.new))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'posicoes', filter: `corrida_id=eq.${c.id}` },
+      (p) => receberPosicaoOutro(p.new))
+    .subscribe();
+}
+
+// Reserva caso o tempo real caia (rede ruim): busca o estado a cada 8 s.
+async function sincronizar() {
+  if (!S.corrida || S.sincronizando) return;
+  S.sincronizando = true;
+  try {
+    const id = S.corrida.id;
+    const { data } = await sb.from('corridas').select('*').eq('id', id).maybeSingle();
+    if (data) await definirCorrida(data);
+    await carregarPosicaoOutro();
+
+    const c = S.corrida;
+    const limiteMs = (S.tarifa?.expira_min || 10) * 60000;
+    if (c && c.status === 'solicitada' && S.perfil.papel === 'cliente'
+        && Date.now() - new Date(c.solicitada_em).getTime() > limiteMs) {
+      const r = await sb.rpc('atualizar_corrida', { p_corrida: c.id, p_acao: 'cancelar' });
+      if (!r.error) {
+        toast('Nenhum motorista aceitou a tempo. Tente pedir de novo.', 'erro');
+        await definirCorrida(r.data);
+      }
+    }
+  } catch (e) {
+    console.warn('sincronizar', e);
+  } finally {
+    S.sincronizando = false;
+  }
+}
+
+function atualizarTextosAoVivo() {
+  const el = $('#ao-vivo');
+  if (el) {
+    if (S.posOutro) {
+      const quem = S.perfil.papel === 'motorista' ? 'Passageiro' : 'Motorista';
+      const dist = S.pos ? ` a ${fmtDist(distanciaM(S.pos, S.posOutro))} de você` : '';
+      el.textContent = `${quem}${dist} · atualizado ${haQuanto(S.posOutro.atualizado_em)}`;
+      el.classList.remove('oculto');
+    } else {
+      el.textContent = 'Aguardando localização da outra pessoa…';
+    }
+  }
+  const t = $('#tempo-espera');
+  if (t && S.corrida?.status === 'solicitada') t.textContent = haQuanto(S.corrida.solicitada_em).replace('agora', 'agora mesmo');
+}
+
+// ---------------------------------------------------------------------
+// Cliente: escolher origem/destino, estimar e pedir
+// ---------------------------------------------------------------------
+async function usarMinhaLocalizacao(avisar = true) {
+  if (!S.pos) { if (avisar) toast('Aguardando o GPS…'); return; }
+  const ponto = { lat: S.pos.lat, lng: S.pos.lng, endereco: 'Minha localização' };
+  S.origem = ponto;
+  S.texto.origem = 'Minha localização';
+  render();
+  desenharMapa();
+  calcularEstimativa();
+  const endereco = await enderecoDe(ponto);
+  if (S.origem === ponto) {
+    ponto.endereco = endereco;
+    S.texto.origem = endereco;
+    if (!S.corrida) render();
+  }
+}
+
+async function definirPonto(campo, ponto) {
+  S[campo] = ponto;
+  S.texto[campo] = ponto.endereco;
+  S.resultados = null;
+  if (campo === 'origem') S.escolhendo = 'destino';
+  render();
+  desenharMapa();
+  calcularEstimativa();
+}
+
+async function aoClicarMapa(e) {
+  if (S.perfil?.papel !== 'cliente' || S.corrida || S.avaliar) return;
+  const campo = S.escolhendo;
+  const ponto = { lat: e.latlng.lat, lng: e.latlng.lng, endereco: 'Buscando endereço…' };
+  await definirPonto(campo, ponto);
+  const endereco = await enderecoDe(ponto);
+  if (S[campo] === ponto) {
+    ponto.endereco = endereco;
+    S.texto[campo] = endereco;
+    render();
+  }
+}
+
+async function buscar(campo) {
+  const texto = (S.texto[campo] || '').trim();
+  if (texto.length < 3) { toast('Digite pelo menos 3 letras do endereço.'); return; }
+  S.resultados = { campo, itens: null };
+  render();
+  try {
+    const itens = await buscarEnderecos(texto);
+    S.resultados = { campo, itens };
+  } catch (e) {
+    S.resultados = null;
+    erro(e);
+  }
+  render();
+}
+
+async function calcularEstimativa() {
+  S.estimativa = null;
+  if (!S.origem || !S.destino) { render(); return; }
+  const seq = ++S.seqEstimativa;
+  S.calculando = true;
+  render();
+  const [preco, rota] = await Promise.all([
+    sb.rpc('estimar_preco', { o_lat: S.origem.lat, o_lng: S.origem.lng, d_lat: S.destino.lat, d_lng: S.destino.lng }),
+    calcularRota(S.origem, S.destino),
+  ]);
+  if (seq !== S.seqEstimativa) return;
+  S.calculando = false;
+  if (preco.error) { erro(preco.error); render(); return; }
+  const est = preco.data?.[0];
+  S.estimativa = { valor: est?.valor, km: est?.km, min: rota?.min ?? null };
+  render();
+  if (!S.corrida) {
+    desenharLinha(rota ? rota.linha : [[S.origem.lat, S.origem.lng], [S.destino.lat, S.destino.lng]]);
+    S.mapa.invalidateSize();
+    enquadrar([S.origem, S.destino]);
+  }
+}
+
+async function pedirCorrida(botao) {
+  if (!S.origem || !S.destino) return;
+  botao.disabled = true;
+  const { data, error } = await sb.rpc('solicitar_corrida', {
+    o_lat: S.origem.lat, o_lng: S.origem.lng, o_endereco: S.origem.endereco,
+    d_lat: S.destino.lat, d_lng: S.destino.lng, d_endereco: S.destino.endereco,
+  });
+  if (error) { botao.disabled = false; erro(error); return; }
+  desenharLinha(null);
+  await definirCorrida(data);
+}
+
+// ---------------------------------------------------------------------
+// Motorista: online, ofertas e aceite
+// ---------------------------------------------------------------------
+async function alternarOnline(botao) {
+  const novo = !S.motorista.online;
+  if (novo && !S.pos) { toast('Aguarde o GPS encontrar sua posição.'); return; }
+  botao.disabled = true;
+  const { error } = await sb.rpc('definir_online', { p_online: novo });
+  botao.disabled = false;
+  if (error) { erro(error); return; }
+  S.motorista.online = novo;
+  if (novo) {
+    await enviarPosicao(true);
+    alerta('Você está online. As corridas próximas aparecem aqui.');
+  } else {
+    S.disponiveis = [];
+    S.disponiveisAssinatura = '';
+  }
+  atualizarWakeLock();
+  desenharMapa();
+  render();
+  if (novo) atualizarDisponiveis();
+}
+
+async function atualizarDisponiveis() {
+  if (S.perfil?.papel !== 'motorista' || !S.motorista?.online || S.corrida) return;
+  const { data, error } = await sb.rpc('corridas_disponiveis');
+  if (error) { console.warn('corridas_disponiveis', error.message); return; }
+  const lista = data || [];
+  const assinatura = JSON.stringify(lista.map((d) => [d.id, d.distancia_ate_origem_km]));
+  if (assinatura === S.disponiveisAssinatura) return;
+  const novas = lista.filter((d) => !S.disponiveis.some((x) => x.id === d.id));
+  S.disponiveis = lista;
+  S.disponiveisAssinatura = assinatura;
+  if (novas.length) alerta(novas.length === 1 ? 'Nova corrida disponível!' : `${novas.length} novas corridas disponíveis!`);
+  desenharMapa();
+  render();
+}
+
+async function aceitar(id, botao) {
+  botao.disabled = true;
+  const { data, error } = await sb.rpc('aceitar_corrida', { p_corrida: id });
+  if (error) {
+    erro(error);
+    S.disponiveisAssinatura = '';
+    atualizarDisponiveis();
+    botao.disabled = false;
+    return;
+  }
+  S.disponiveis = [];
+  S.disponiveisAssinatura = '';
+  await definirCorrida(data);
+  centralizar();
+  alerta('Corrida aceita! Vá até o passageiro.');
+}
+
+// Ações da corrida (os dois lados).
+async function acaoCorrida(acao, botao) {
+  const perguntas = {
+    cancelar: S.perfil.papel === 'motorista'
+      ? 'Desistir desta corrida? Ela volta para outros motoristas.'
+      : 'Cancelar esta corrida?',
+    finalizar: `Finalizar a corrida? Valor a receber: ${brl(S.corrida?.preco)}`,
+  };
+  if (perguntas[acao] && !confirm(perguntas[acao])) return;
+  botao.disabled = true;
+  const { data, error } = await sb.rpc('atualizar_corrida', { p_corrida: S.corrida.id, p_acao: acao });
+  if (error) { botao.disabled = false; erro(error); return; }
+  if (acao === 'cancelar') toast(S.perfil.papel === 'motorista' ? 'Você desistiu da corrida.' : 'Corrida cancelada.');
+  await definirCorrida(data);
+  if (S.perfil.papel === 'motorista' && !S.corrida) atualizarDisponiveis();
+}
+
+async function enviarAvaliacao(botao) {
+  if (!S.nota) { toast('Escolha de 1 a 5 estrelas.'); return; }
+  botao.disabled = true;
+  const comentario = $('#av-comentario')?.value || null;
+  const { error } = await sb.rpc('avaliar_corrida', { p_corrida: S.avaliar.id, p_nota: S.nota, p_comentario: comentario });
+  if (error) { botao.disabled = false; erro(error); return; }
+  toast('Obrigado pela avaliação!', 'ok');
+  fecharAvaliacao();
+}
+
+function fecharAvaliacao() {
+  S.avaliar = null;
+  S.nota = 0;
+  desenharMapa();
+  render();
+  if (S.perfil.papel === 'cliente' && !S.origem) usarMinhaLocalizacao(false);
+}
+
+// ---------------------------------------------------------------------
+// Admin
+// ---------------------------------------------------------------------
+async function carregarAdmin() {
+  const { data, error } = await sb.rpc('motoristas_admin');
+  if (error) { erro(error); S.adminLista = []; return; }
+  S.adminLista = data || [];
+}
+
+async function mudarStatusMotorista(id, status, botao) {
+  botao.disabled = true;
+  const { error } = await sb.rpc('definir_status_motorista', { p_motorista: id, p_status: status });
+  if (error) { botao.disabled = false; erro(error); return; }
+  toast('Status atualizado.', 'ok');
+  await carregarAdmin();
+  render();
+}
+
+// ---------------------------------------------------------------------
+// Histórico
+// ---------------------------------------------------------------------
+const NOMES_STATUS = {
+  solicitada: 'Procurando motorista', aceita: 'Motorista a caminho', chegou: 'Motorista chegou',
+  em_andamento: 'Em andamento', concluida: 'Concluída', cancelada: 'Cancelada',
+};
+
+async function abrirHistorico() {
+  let q = sb.from('corridas').select('id, criado_em, origem_endereco, destino_endereco, preco, status')
+    .order('criado_em', { ascending: false }).limit(30);
+  if (S.perfil.papel === 'motorista') q = q.eq('motorista_id', S.usuario.id);
+  if (S.perfil.papel === 'cliente') q = q.eq('cliente_id', S.usuario.id);
+  const { data, error } = await q;
+  if (error) { erro(error); return; }
+  const linhas = (data || []).map((c) => `
+    <div class="cartao">
+      <div class="valor-linha" style="margin:0 0 6px">
+        <span class="sub">${new Date(c.criado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+        <b>${brl(c.preco)}</b>
+      </div>
+      ${htmlTrajeto(c.origem_endereco, c.destino_endereco)}
+      <div class="sub" style="margin-top:6px">${esc(NOMES_STATUS[c.status] || c.status)}</div>
+    </div>`).join('');
+  abrirModal(S.perfil.papel === 'admin' ? 'Últimas corridas' : 'Minhas corridas', linhas || '<div class="vazio">Nenhuma corrida ainda.</div>');
+}
+
+// ---------------------------------------------------------------------
+// Painel (interface)
+// ---------------------------------------------------------------------
+function htmlTrajeto(origem, destino) {
+  return `<div class="trajeto">
+    <div><span class="bolinha verde"></span><span>${esc(origem || 'Origem')}</span></div>
+    <div><span class="bolinha vermelha"></span><span>${esc(destino || 'Destino')}</span></div>
+  </div>`;
+}
+
+function htmlNota(n) {
+  return Number(n?.total) > 0 ? `⭐ ${Number(n.media).toLocaleString('pt-BR')} (${n.total})` : '⭐ Novo';
+}
+
+function htmlContato() {
+  const tel = telLink(S.outro?.telefone);
+  const zap = zapLink(S.outro?.telefone);
+  if (!tel) return '';
+  return `<div class="linha-btns">
+    <a class="btn sec" href="${tel}">📞 Ligar</a>
+    <a class="btn sec" href="${zap}" target="_blank" rel="noopener">💬 WhatsApp</a>
+  </div>`;
+}
+
+function render() {
+  const painel = $('#painel');
+  if (!S.perfil) { painel.innerHTML = ''; return; }
+  let html;
+  if (S.avaliar) html = htmlAvaliar();
+  else if (S.perfil.papel === 'admin') html = htmlAdmin();
+  else if (S.perfil.papel === 'motorista') html = htmlMotorista();
+  else html = htmlCliente();
+  painel.innerHTML = html;
+  atualizarTextosAoVivo();
+}
+
+function htmlCliente() {
+  const c = S.corrida;
+  if (!c) return htmlClientePedido();
+
+  if (c.status === 'solicitada') {
+    return `
+      <div class="carregando"><div class="spinner"></div>
+        <div><h2 style="margin:0">Procurando motorista…</h2>
+        <div class="sub">Pedido feito <span id="tempo-espera">agora mesmo</span></div></div>
+      </div>
+      <div class="cartao">${htmlTrajeto(c.origem_endereco, c.destino_endereco)}
+        <div class="valor-linha"><span>${fmtKm(c.distancia_km)}</span><b>${brl(c.preco)}</b></div>
+      </div>
+      <button class="btn perigo largo" data-acao="corrida" data-valor="cancelar">Cancelar pedido</button>`;
+  }
+
+  const faixa = {
+    aceita: ['azul', '🚗 Motorista a caminho'],
+    chegou: ['verde', '📍 Seu motorista chegou!'],
+    em_andamento: ['amarela', '🛣️ Em viagem'],
+  }[c.status];
+  const carro = S.carro ? [S.carro.veiculo_modelo, S.carro.veiculo_cor].filter(Boolean).join(' · ') : '';
+  return `
+    <div class="status-faixa ${faixa[0]}">${faixa[1]}</div>
+    <div class="cartao">
+      <div class="pessoa">
+        <div class="avatar">🚗</div>
+        <div style="flex:1;min-width:0">
+          <div class="nome">${esc(S.outro?.nome || 'Motorista')}</div>
+          <div class="sub">${htmlNota(S.notaOutro)}${carro ? ' · ' + esc(carro) : ''}</div>
+          ${S.carro?.veiculo_placa ? `<span class="placa">${esc(S.carro.veiculo_placa)}</span>` : ''}
+        </div>
+      </div>
+      <div class="ao-vivo" id="ao-vivo"></div>
+      ${htmlContato()}
+    </div>
+    <div class="cartao">${htmlTrajeto(c.origem_endereco, c.destino_endereco)}
+      <div class="valor-linha"><span>Valor da corrida</span><b>${brl(c.preco)}</b></div>
+    </div>
+    ${c.status !== 'em_andamento' ? '<button class="btn perigo largo" data-acao="corrida" data-valor="cancelar">Cancelar corrida</button>' : ''}`;
+}
+
+function htmlClientePedido() {
+  const r = S.resultados;
+  const listaResultados = (campo) => {
+    if (!r || r.campo !== campo) return '';
+    if (!r.itens) return '<div class="resultados"><div class="vazio">Buscando…</div></div>';
+    if (!r.itens.length) return '<div class="resultados"><div class="vazio">Nada encontrado. Tente outro termo ou toque no mapa.</div></div>';
+    return `<div class="resultados">${r.itens.map((it, i) =>
+      `<button data-acao="resultado" data-campo="${campo}" data-i="${i}">${esc(it.endereco)}</button>`).join('')}</div>`;
+  };
+  const campo = (nome, cor, placeholder) => `
+    <div class="campo ${S.escolhendo === nome ? 'escolhendo' : ''}">
+      <span class="bolinha ${cor}"></span>
+      <input type="text" data-campo="${nome}" placeholder="${placeholder}" value="${esc(S.texto[nome])}" enterkeyhint="search">
+      <button type="button" data-acao="buscar" data-campo="${nome}" title="Buscar">🔍</button>
+    </div>${listaResultados(nome)}`;
+
+  let rodape = '';
+  if (S.calculando) {
+    rodape = '<div class="carregando"><div class="spinner"></div><span>Calculando preço…</span></div>';
+  } else if (S.estimativa) {
+    const tempo = S.estimativa.min ? ` · ~${S.estimativa.min} min` : '';
+    rodape = `
+      <div class="estimativa">
+        <div><div class="sub">Preço estimado</div><div class="preco">${brl(S.estimativa.valor)}</div></div>
+        <div class="sub" style="text-align:right">${fmtKm(S.estimativa.km)}${tempo}</div>
+      </div>
+      <button class="btn largo" data-acao="pedir">Pedir corrida</button>`;
+  }
+
+  return `
+    <h2>Para onde vamos?</h2>
+    ${campo('origem', 'verde', 'Local de embarque')}
+    ${campo('destino', 'vermelha', 'Destino')}
+    <div class="atalhos">
+      <button class="link" data-acao="minha-loc">📍 Usar minha localização</button>
+      <button class="link" data-acao="escolher" data-campo="${S.escolhendo === 'destino' ? 'origem' : 'destino'}">
+        Tocar no mapa marca: <u>${S.escolhendo === 'destino' ? 'destino' : 'embarque'}</u> (trocar)
+      </button>
+    </div>
+    ${rodape}`;
+}
+
+function htmlMotorista() {
+  const m = S.motorista;
+  if (m.status === 'pendente') {
+    return `<h2>Cadastro em análise</h2>
+      <p class="sub">Seu cadastro de motorista está aguardando aprovação. Assim que for aprovado você poderá ficar online e receber corridas.</p>
+      <button class="btn sec largo" data-acao="recarregar-motorista">Verificar novamente</button>`;
+  }
+  if (m.status === 'bloqueado') {
+    return `<h2>Conta bloqueada</h2><p class="sub">Entre em contato com o suporte.</p>`;
+  }
+
+  const c = S.corrida;
+  if (c) return htmlMotoristaCorrida(c);
+
+  const ofertas = S.disponiveis.map((d) => `
+    <div class="cartao">
+      <div class="valor-linha" style="margin:0 0 6px">
+        <span><b style="font-size:15px">Buscar a ${fmtKm(d.distancia_ate_origem_km)}</b> · ${esc(d.cliente_nome)}</span>
+        <b>${brl(d.preco)}</b>
+      </div>
+      ${htmlTrajeto(d.origem_endereco, d.destino_endereco)}
+      <div class="sub" style="margin:6px 0 8px">Viagem de ${fmtKm(d.distancia_km)}</div>
+      <button class="btn largo" data-acao="aceitar" data-id="${d.id}">Aceitar corrida</button>
+    </div>`).join('');
+
+  return `
+    <button class="interruptor ${m.online ? 'on' : ''}" data-acao="online">
+      ${m.online ? '🟢 Você está ONLINE' : '⚪ Você está offline — toque para ficar online'}
+    </button>
+    ${m.online ? `
+      <p class="sub">Mantenha o app aberto e a tela ligada para continuar recebendo corridas.</p>
+      ${ofertas || `<div class="carregando"><div class="spinner"></div><span class="sub">Aguardando corridas por perto…</span></div>`}
+    ` : `<p class="sub">Fique online para receber pedidos de passageiros perto de você.</p>`}`;
+}
+
+function htmlMotoristaCorrida(c) {
+  const alvo = c.status === 'em_andamento'
+    ? { lat: c.destino_lat, lng: c.destino_lng }
+    : { lat: c.origem_lat, lng: c.origem_lng };
+  const faixa = {
+    aceita: ['azul', '🚗 Indo buscar o passageiro'],
+    chegou: ['verde', '📍 Aguardando o passageiro embarcar'],
+    em_andamento: ['amarela', '🛣️ Em viagem para o destino'],
+  }[c.status];
+  const principal = {
+    aceita: ['chegou', 'Cheguei ao local'],
+    chegou: ['iniciar', 'Iniciar corrida'],
+    em_andamento: ['finalizar', `Finalizar e cobrar ${brl(c.preco)}`],
+  }[c.status];
+
+  return `
+    <div class="status-faixa ${faixa[0]}">${faixa[1]}</div>
+    <div class="cartao">
+      <div class="pessoa">
+        <div class="avatar">🙋</div>
+        <div style="flex:1;min-width:0">
+          <div class="nome">${esc(S.outro?.nome || 'Passageiro')}</div>
+          <div class="sub">${htmlNota(S.notaOutro)}</div>
+        </div>
+      </div>
+      <div class="ao-vivo" id="ao-vivo"></div>
+      ${htmlContato()}
+    </div>
+    <div class="cartao">${htmlTrajeto(c.origem_endereco, c.destino_endereco)}
+      <div class="valor-linha"><span>${fmtKm(c.distancia_km)}</span><b>${brl(c.preco)}</b></div>
+      <div class="linha-btns">
+        <a class="btn sec pequeno" href="${linkNavegacao(alvo, 'google')}" target="_blank" rel="noopener">🧭 Google Maps</a>
+        <a class="btn sec pequeno" href="${linkNavegacao(alvo, 'waze')}" target="_blank" rel="noopener">🧭 Waze</a>
+      </div>
+    </div>
+    <button class="btn largo" data-acao="corrida" data-valor="${principal[0]}">${principal[1]}</button>
+    ${c.status !== 'em_andamento' ? '<button class="btn perigo largo" style="margin-top:8px" data-acao="corrida" data-valor="cancelar">Desistir da corrida</button>' : ''}`;
+}
+
+function htmlAvaliar() {
+  const estrelas = [1, 2, 3, 4, 5].map((n) =>
+    `<button data-acao="nota" data-n="${n}" class="${n <= S.nota ? 'marcada' : ''}" aria-label="${n} estrelas">⭐</button>`).join('');
+  return `
+    <h2>Corrida finalizada</h2>
+    <p class="sub">Valor: <b>${brl(S.avaliar.preco)}</b>. Como foi com ${esc(S.avaliar.nome)}?</p>
+    <div class="estrelas">${estrelas}</div>
+    <textarea id="av-comentario" placeholder="Comentário (opcional)" maxlength="500"></textarea>
+    <div class="linha-btns">
+      <button class="btn sec" data-acao="pular-avaliacao">Pular</button>
+      <button class="btn" data-acao="avaliar">Enviar</button>
+    </div>`;
+}
+
+function htmlAdmin() {
+  const lista = S.adminLista || [];
+  const itens = lista.map((m) => `
+    <div class="cartao">
+      <div class="valor-linha" style="margin:0 0 4px"><b style="font-size:16px">${esc(m.nome)}</b><span class="selo ${m.status}">${m.status}</span></div>
+      <div class="sub">${esc(m.email)} · ${esc(m.telefone || 'sem telefone')}</div>
+      <div class="sub">CNH: ${esc(m.cnh || '—')} · ${esc([m.veiculo_modelo, m.veiculo_cor].filter(Boolean).join(' ') || 'carro não informado')}
+        ${m.veiculo_placa ? `· <b>${esc(m.veiculo_placa)}</b>` : ''} ${m.online ? '· 🟢 online' : ''}</div>
+      <div class="linha-btns">
+        ${m.status !== 'aprovado' ? `<button class="btn pequeno" data-acao="admin-status" data-id="${m.id}" data-valor="aprovado">Aprovar</button>` : ''}
+        ${m.status !== 'bloqueado' ? `<button class="btn perigo pequeno" data-acao="admin-status" data-id="${m.id}" data-valor="bloqueado">Bloquear</button>` : ''}
+      </div>
+    </div>`).join('');
+  return `
+    <div class="valor-linha" style="margin:0 0 6px"><h2 style="margin:0">Motoristas</h2>
+      <button class="btn sec pequeno" data-acao="admin-recarregar">Atualizar</button></div>
+    <p class="sub">Aprove os motoristas depois de conferir CNH e veículo.</p>
+    ${itens || '<div class="vazio">Nenhum motorista cadastrado.</div>'}`;
+}
+
+// ---------------------------------------------------------------------
+// Eventos
+// ---------------------------------------------------------------------
+function ligarEventosFixos() {
+  // Abas de login
+  document.querySelectorAll('[data-aba]').forEach((b) => b.addEventListener('click', () => {
+    const aba = b.dataset.aba;
+    document.querySelectorAll('[data-aba]').forEach((x) => x.classList.toggle('ativa', x === b));
+    $('#form-entrar').classList.toggle('oculto', aba !== 'entrar');
+    $('#form-cadastrar').classList.toggle('oculto', aba !== 'cadastrar');
+    msgLogin(null);
+  }));
+
+  document.querySelectorAll('input[name=papel]').forEach((r) => r.addEventListener('change', () => {
+    const motorista = document.querySelector('input[name=papel]:checked').value === 'motorista';
+    $('#campos-motorista').classList.toggle('oculto', !motorista);
+    ['#c-cnh', '#c-modelo', '#c-cor', '#c-placa'].forEach((s) => { $(s).required = motorista; });
+  }));
+
+  $('#form-entrar').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const botao = e.submitter;
+    botao.disabled = true;
+    const { error } = await sb.auth.signInWithPassword({ email: $('#e-email').value.trim(), password: $('#e-senha').value });
+    botao.disabled = false;
+    if (error) msgLogin(error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message, 'erro');
+  });
+
+  $('#btn-esqueci').addEventListener('click', async () => {
+    const email = $('#e-email').value.trim();
+    if (!email) { msgLogin('Digite seu e-mail acima e toque de novo em "Esqueci minha senha".', 'erro'); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href.split('#')[0] });
+    msgLogin(error ? error.message : 'Enviamos um link para redefinir a senha no seu e-mail.', error ? 'erro' : 'ok');
+  });
+
+  $('#form-cadastrar').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const papel = document.querySelector('input[name=papel]:checked').value;
+    const dados = { nome: $('#c-nome').value.trim(), telefone: $('#c-tel').value.trim(), papel };
+    if (papel === 'motorista') {
+      Object.assign(dados, {
+        cnh: $('#c-cnh').value.trim(),
+        veiculo_modelo: $('#c-modelo').value.trim(),
+        veiculo_cor: $('#c-cor').value.trim(),
+        veiculo_placa: $('#c-placa').value.trim().toUpperCase(),
+      });
+    }
+    if (soDigitos(dados.telefone).length < 10) { msgLogin('Informe o celular com DDD.', 'erro'); return; }
+    const botao = e.submitter;
+    botao.disabled = true;
+    const { data, error } = await sb.auth.signUp({
+      email: $('#c-email').value.trim(),
+      password: $('#c-senha').value,
+      options: { data: dados, emailRedirectTo: location.href.split('#')[0] },
+    });
+    botao.disabled = false;
+    if (error) { msgLogin(error.message, 'erro'); return; }
+    if (!data.session) msgLogin('Conta criada! Confirme pelo link enviado ao seu e-mail e depois entre.', 'ok');
+  });
+
+  $('#btn-sair').addEventListener('click', sair);
+  $('#btn-historico').addEventListener('click', abrirHistorico);
+  $('#btn-centralizar').addEventListener('click', centralizar);
+  $('#modal-fechar').addEventListener('click', fecharModal);
+  $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') fecharModal(); });
+
+  const painel = $('#painel');
+  painel.addEventListener('input', (e) => {
+    const campo = e.target.dataset?.campo;
+    if (campo) S.texto[campo] = e.target.value;
+  });
+  painel.addEventListener('focusin', (e) => {
+    const campo = e.target.dataset?.campo;
+    if (campo && e.target.tagName === 'INPUT' && S.escolhendo !== campo) {
+      S.escolhendo = campo;
+      document.querySelectorAll('#painel .campo').forEach((el) =>
+        el.classList.toggle('escolhendo', el.querySelector('input')?.dataset.campo === campo));
+    }
+  });
+  painel.addEventListener('keydown', (e) => {
+    const campo = e.target.dataset?.campo;
+    if (campo && e.key === 'Enter') { e.preventDefault(); buscar(campo); }
+  });
+  painel.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-acao]');
+    if (!b) return;
+    const { acao, campo, valor, id } = b.dataset;
+    const acoes = {
+      buscar: () => buscar(campo),
+      resultado: () => definirPonto(campo, S.resultados.itens[Number(b.dataset.i)]),
+      'minha-loc': () => usarMinhaLocalizacao(true),
+      escolher: () => { S.escolhendo = campo; render(); toast(`Toque no mapa para marcar o ${campo === 'origem' ? 'embarque' : 'destino'}.`); },
+      pedir: () => pedirCorrida(b),
+      corrida: () => acaoCorrida(valor, b),
+      online: () => alternarOnline(b),
+      aceitar: () => aceitar(id, b),
+      nota: () => { S.nota = Number(b.dataset.n); const t = $('#av-comentario')?.value; render(); if (t) $('#av-comentario').value = t; },
+      avaliar: () => enviarAvaliacao(b),
+      'pular-avaliacao': fecharAvaliacao,
+      'recarregar-motorista': async () => { await recarregarMotorista(); render(); },
+      'admin-status': () => mudarStatusMotorista(id, valor, b),
+      'admin-recarregar': async () => { await carregarAdmin(); render(); },
+    };
+    const fn = acoes[acao];
+    if (fn) Promise.resolve(fn()).catch(erro);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !S.perfil) return;
+    atualizarWakeLock();
+    sincronizar();
+    enviarPosicao(true);
+    atualizarDisponiveis();
+  });
+}
+
+function msgLogin(texto, tipo) {
+  const el = $('#login-msg');
+  el.textContent = texto || '';
+  el.className = `msg ${tipo || ''}`;
+  el.classList.toggle('oculto', !texto);
+}
+
+iniciar();
+</script>
+</body>
+</html>
